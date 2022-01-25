@@ -517,18 +517,6 @@ describe("Token trading platform:", async () => {
             ).to.be.revertedWith("Previous round is not ended yet")
         })
 
-        // saleRoundTokenPrice = getNextRoundTokenPrice(saleRoundTokenPrice);
-        // availableTokensThisRound = ethAmountTradedDuringTradeRound * 10**18 / saleRoundTokenPrice;
-        // ethAccumulatedDuringSaleRound = 0;
-        // boughtTokensThisRound = 0;
-        // burnedTokensThisRound = 0;
-        // roundEndsAt = block.timestamp + roundDuration;
-        // contractState = ContractState.SALE;
-
-        // FrrankToken(targetTokenAddress).mint(address(this), availableTokensThisRound);
-
-        // emit TradeRoundFinish(roundNumber - 1, ethAmountTradedDuringTradeRound, block.timestamp);
-        // emit SaleRoundStart(roundNumber, availableTokensThisRound, saleRoundTokenPrice, block.timestamp);
         it("startSaleRound() starts SALE round, edits necessary data and emits proper events", async () => {
             const ethAmountTradedDuringTradeRound = await platform.ethAmountTradedDuringTradeRound();
             const prevTokenPrice = Number(await platform.saleRoundTokenPrice());
