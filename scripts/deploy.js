@@ -20,6 +20,13 @@ async function main() {
   const tradingPlatform = await TradingPlatform.deploy(TOKEN_NAME, TOKEN_SYMBOL);
   PLATFORM_ADDRESS = tradingPlatform.address;
   console.log("Trading platform deployed to: ", PLATFORM_ADDRESS);  
+
+  console.log(1)
+  await tradingPlatform.deployTransaction.wait()
+  console.log(2)
+  const tokenAddress = await tradingPlatform.targetTokenAddress();
+  console.log(2)
+  console.log(tokenAddress)
   
   let networkEnvData = `DEPLOYER_MNEMONIC = ${process.env.MNEMONIC}`
   + `\nDEPLOYER_PRIVATE_KEY = ${process.env.PRIVATE_KEY}`
@@ -30,7 +37,8 @@ async function main() {
   + `\nTOKEN_SYMBOL = ${TOKEN_SYMBOL}`
   + `\nTOKEN_SUPPLY = 18`
   + `\nOWNER_ADDRESS = ${TOKEN_OWNER}`
-  + `\nPLATFORM_ADDRESS = ${PLATFORM_ADDRESS}`;
+  + `\nPLATFORM_ADDRESS = ${PLATFORM_ADDRESS}`
+  + `\nTOKEN_ADDRESS = ${tokenAddress}`;
 
   fs.writeFileSync(
     `.env-${network}`,

@@ -21,7 +21,7 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
     uint256 public saleRoundTokenPrice;
     uint256 public availableTokensThisRound;
     uint256 public boughtTokensThisRound;
-    uint256 burnedTokensThisRound;
+    uint256 public burnedTokensThisRound;
     uint256 public roundEndsAt;
     uint256 public ethAmountTradedDuringTradeRound = 1 ether;
     uint256 public ethAccumulatedDuringSaleRound;
@@ -58,7 +58,6 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
 
         FrrankToken(targetTokenAddress).mint(address(this), availableTokensThisRound);
 
-        emit TradeRoundFinish(roundNumber, ethAmountTradedDuringTradeRound, block.timestamp);
         emit SaleRoundStart(
             ++roundNumber,
             availableTokensThisRound,
@@ -92,14 +91,13 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
     {
         require(roundEndsAt < block.timestamp, "Previous round is not ended yet");
 
-
+        saleRoundTokenPrice = getNextRoundTokenPrice(saleRoundTokenPrice);
         availableTokensThisRound = ethAmountTradedDuringTradeRound * 10**18 / saleRoundTokenPrice;
         ethAccumulatedDuringSaleRound = 0;
         boughtTokensThisRound = 0;
         burnedTokensThisRound = 0;
         roundEndsAt = block.timestamp + roundDuration;
         contractState = ContractState.SALE;
-        saleRoundTokenPrice = getNextRoundTokenPrice(saleRoundTokenPrice);
 
         FrrankToken(targetTokenAddress).mint(address(this), availableTokensThisRound);
 
@@ -122,12 +120,13 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
         
         if(availableTokensThisRound != boughtTokensThisRound) {
             burnedTokensThisRound = availableTokensThisRound - boughtTokensThisRound;
+            FrrankToken(targetTokenAddress).burn(address(this), burnedTokensThisRound);
         }
         ethAmountTradedDuringTradeRound = 0;
         roundEndsAt = block.timestamp + roundDuration;
         contractState = ContractState.TRADE;
 
-        FrrankToken(targetTokenAddress).burn(address(this), burnedTokensThisRound);
+        
 
         emit SaleRoundFinish(
             roundNumber,
@@ -155,15 +154,13 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
         uint256 tokensLeft = availableTokensThisRound - boughtTokensThisRound;
         uint256 priceOfOrderedTokens = saleRoundTokenPrice * _tokensToBuy / 10**decimalsOftargetToken;
 
-        require(roundEndsAt > block.timestamp, "Sale round is finished");
-        require(tokensLeft > 0, "No tokens left to buy in this sale round");
         require(_tokensToBuy <= tokensLeft, "There is not enough tokens to fill your order");
         require(priceOfOrderedTokens <= msg.value, "You are sending not enough ETH to fill your order");
         
         boughtTokensThisRound += _tokensToBuy;
         ethAccumulatedDuringSaleRound += msg.value;
 
-        distributeReferralFees(50, 30);
+        distributeReferralFees(_msgSender(), 50, 30);
 
         IERC20(targetTokenAddress).safeTransfer(_msgSender(), _tokensToBuy);
 
@@ -188,13 +185,13 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
 
         IERC20(targetTokenAddress).safeTransferFrom(_msgSender(), address(this), _tokensAmount);
 
-        Order storage theOrder = orderIdToOrder[lastOrderId++];
+        Order storage theOrder = orderIdToOrder[lastOrderId];
         theOrder.orderStatus = OrderStatus.AVAILABLE;
         theOrder.tokensAmount = _tokensAmount;
         theOrder.tokenPriceInWei = _tokenPriceInWei;
         theOrder.orderCreator = _msgSender();
 
-        emit NewSellOrder(lastOrderId - 1, _tokensAmount, _tokenPriceInWei);
+        emit NewSellOrder(lastOrderId++, _tokensAmount, _tokenPriceInWei);
     }
 
     /**
@@ -222,12 +219,12 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
             theOrder.orderStatus = OrderStatus.FILLED;
         }
         theOrder.tokensBought += _tokensAmount;
+        ethAmountTradedDuringTradeRound += msg.value;
 
-        distributeReferralFees(25, 25);
+        distributeReferralFees(theOrder.orderCreator, 25, 25);
         uint256 _amount = msg.value / 1000 * 950;
 
-        (bool sent, bytes memory data) = payable(theOrder.orderCreator).call{value: _amount}("");
-        require(sent, string(data));
+        payable(theOrder.orderCreator).call{value: _amount}("");
 
         IERC20(targetTokenAddress).safeTransfer(_msgSender(), _tokensAmount);
 
@@ -268,26 +265,24 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
         @param _firstFeeAmount fee amount for the first referral
         @param _secondFeeAmount fee amount for second referral
      */
-    function distributeReferralFees(uint256 _firstFeeAmount, uint256 _secondFeeAmount) internal {
-        address payable firstReferral = payable(referrals[_msgSender()]);
-        address payable secondReferral = payable(firstReferral);
+    function distributeReferralFees(address _address, uint256 _firstFeeAmount, uint256 _secondFeeAmount) internal {
+        address payable firstReferral = payable(referrals[_address]);
+        address payable secondReferral = payable(referrals[firstReferral]);
 
         uint256 firstAmount = msg.value / 1000 * _firstFeeAmount;
         uint256 secondAmount = msg.value / 1000 * _secondFeeAmount;
         
         if(firstReferral != address(0)) {
-            (bool success1, bytes memory data1) = firstReferral.call{value: firstAmount}("");
-            if (!success1) revert(string(data1));
+            firstReferral.call{value: firstAmount}("");
             emit FeeTransferredToReferral(firstReferral, firstAmount);
             if(secondReferral != address(0)) {
-                (bool success2, bytes memory data2) = secondReferral.call{value: secondAmount}("");
-                if (!success2) revert(string(data2));
+                secondReferral.call{value: secondAmount}("");
                 emit FeeTransferredToReferral(secondReferral, secondAmount);
             }
         }
     }
 
-    function getNextRoundTokenPrice(uint256 _previousRoundTokenPrice) internal pure returns (uint256) {
+    function getNextRoundTokenPrice(uint256 _previousRoundTokenPrice) public pure returns (uint256) {
         return (_previousRoundTokenPrice * 103) / 100 + 0.000004 ether;
     }
 

@@ -15,8 +15,4 @@ task("getTargetTokenAddress", "Shows and save to network .env an address of the 
 
         let targetTokenAddress = await platform.targetTokenAddress();
         console.log(targetTokenAddress)
-
-        if (!networkEnv.TOKEN_ADDRESS) {
-            fs.appendFileSync(`.env-${network.name}`, `\nTOKEN_ADDRESS = ${targetTokenAddress}`)
-        } else process.env.TOKEN_ADDRESS = targetTokenAddress;
     })

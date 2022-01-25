@@ -1,4 +1,3 @@
-// require("@nomiclabs/hardhat-etherscan");
 require("dotenv").config();
 require("@nomiclabs/hardhat-waffle");
 require("./tasks/tasks.js");

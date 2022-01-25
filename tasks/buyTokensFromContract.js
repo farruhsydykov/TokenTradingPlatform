@@ -26,5 +26,5 @@ task("buyTokensFromContract", "Buy tokens for eth from contract during sale roun
 
         let options = {value: ethers.utils.parseEther(`${ethAmountToTransferForTokens}`)}
         let success = await platform.connect(signer).buyTokensFromContract(tokenAmount, options);
-        console.log(success ? "Sale round was set" : "Something went wrong")
+        console.log(success ? "Token buy was successfull" : "Something went wrong")
     })
