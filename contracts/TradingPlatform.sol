@@ -224,7 +224,8 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
         distributeReferralFees(theOrder.orderCreator, 25, 25);
         uint256 _amount = msg.value / 1000 * 950;
 
-        payable(theOrder.orderCreator).call{value: _amount}("");
+        (bool success, ) = payable(theOrder.orderCreator).call{value: _amount}("");
+        require(success);
 
         IERC20(targetTokenAddress).safeTransfer(_msgSender(), _tokensAmount);
 
@@ -273,10 +274,12 @@ contract TradingPlatform is ITradingPlatform, AccessControl, ReentrancyGuard {
         uint256 secondAmount = msg.value / 1000 * _secondFeeAmount;
         
         if(firstReferral != address(0)) {
-            firstReferral.call{value: firstAmount}("");
+            (bool success, ) = firstReferral.call{value: firstAmount}("");
+            require(success);
             emit FeeTransferredToReferral(firstReferral, firstAmount);
             if(secondReferral != address(0)) {
-                secondReferral.call{value: secondAmount}("");
+                (bool success1, ) = secondReferral.call{value: secondAmount}("");
+                require(success1);
                 emit FeeTransferredToReferral(secondReferral, secondAmount);
             }
         }
